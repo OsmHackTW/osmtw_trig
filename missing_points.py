@@ -18,7 +18,7 @@ def main(argv=sys.argv):
         # 點位名稱,,高度,種類,等,編號,材質,TWD97緯度,TWD97經度,TW67橫座標,TW67縱座標,所在地,狀況,備註,
         for row in spamreader:
             if(row[3] == argv[1]):
-                if(len(row[12]) > 0):
+                if(len(row[12]) > 0 and row[12] != "找不到"):
                     pprint(row)
 
 if __name__ == '__main__':
