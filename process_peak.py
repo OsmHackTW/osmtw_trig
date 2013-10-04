@@ -8,20 +8,11 @@ from pprint import pprint
 from subprocess import call
 
 
-stones = [
-# "一等三角點本點",
-# "一等三角點補點",
-# "二等三角點",
-# "三等三角點",
-# "四等三角點",
-# "森林三角點",
-# "一等三角點基線點",
-]
-
-
+comment = u"三角點 基石資料"
+readonly = False
 delta = 0.002
-readonly = True
 debug = True
+stones = []
 
 def searchosm(osm, lon, lat, delta):
     return osm.Map(lon-delta, lat-delta, lon+delta, lat+delta)
@@ -54,7 +45,7 @@ def main():
     osm = OsmApi.OsmApi(passwordfile="passwd", appid = 'RexBot', debug=debug, changesetauto=False)
     
     if (readonly is not True):
-        print ("changeset id %d" % (osm.ChangesetCreate({u"comment": u"基石資料"})), file=sys.stderr)
+        print ("changeset id %d" % (osm.ChangesetCreate({u"comment": comment})), file=sys.stderr)
     
     with open('stone.csv') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
@@ -67,6 +58,8 @@ def main():
             # ignore if the stone is missing.
             if(len(row[12]) > 0):
                 continue
+            if (not ispeak(row[0]) and not ispeak(row[1])):
+                continue
             # refine the format
      
             row[5] = row[5].replace("◎本點","")
@@ -75,8 +68,7 @@ def main():
             lon = row[8] = float(row[8]) # lon
             ele = row[2] = row[2].replace(",","")
     
-            if(row[3] in stones):
-                pprint(row)
+            if(len(stones) == 0 or row[3] in stones):
                 data = searchosm(osm, lon, lat, 0.002)
     
                 match = list(matchnodes(data, "natural", "peak"))
@@ -88,7 +80,7 @@ def main():
                         print(osmlink(node))
     
                 # node not exist.
-                if(len(match) == 0 and (ispeak(row[0]) or ispeak(row[1]))):
+                if(len(match) == 0):
                     node = { 
                             'lat': lat,
                             'lon': lon,
@@ -101,16 +93,14 @@ def main():
                             }
                     if(len(row[1])>0):
                         node['tag']['alt_name'] = row[1]
-                    pprint(node)
-                    print(osmlink(node))
+
                     if (not readonly):
                         osm.NodeCreate(node)
     
                 # node exist, only update names.
                 if(len(match) == 1):
                     node = match[0]
-                    pprint(node)
-                    if(row[0] in node['tag']['name'] or row[1] in node['tag']['name']):
+                    if('name' in node['tag'] and (row[0] in node['tag']['name'] or row[1] in node['tag']['name'])):
                         node['tag']['name'] = row[0]
                         node['tag']['name:zh'] = row[0]
                         if(len(row[1])>0):
@@ -118,12 +108,16 @@ def main():
                         # update ele, only when not set.
                         if('ele' not in node['tag']):
                             node['tag']['ele'] = row[2]
-                        pprint(node)
-                        print(osmlink(node))
                         if (not readonly):
                             osm.NodeUpdate(node)
+                    else:
+                        # found different peak.
+                        pprint(node)
+                        print(osmlink(node))
+
     if (not readonly):
         osm.ChangesetClose()
 
 if __name__ == '__main__':
+    stones = sys.argv[1:]
     main()
