@@ -79,100 +79,90 @@ def matchnodes(nodes, tagname, tagvalue=None):
 def ispeak(name):
     peaklist = ["山", "岳", "尖", "峰", "嶺"]
     for i in peaklist:
-        if (i in name):
+        if(name.endswith(i)):
             return True
     return False
 
 def osmlink(node):
-    links = ("http://www.openstreetmap.org/#map=19/%s/%s&layers=CN" % (node['lat'], node['lon'])) 
+    links = ("http://www.openstreetmap.org/#map=13/%s/%s&layers=CN" % (node['lat'], node['lon']))
     if('id' in node):
         links += "\n" + "http://www.openstreetmap.org/browse/node/%s" % (node['id'])
     return links
 
+def main():
+    osm = OsmApi.OsmApi(passwordfile="passwd", appid = 'RexBot', debug=debug, changesetauto=False)
+    
+    if (readonly is not True):
+        print ("changeset id %d" % (osm.ChangesetCreate({u"comment": u"基石資料"})), file=sys.stderr)
+    
+    with open('stone.csv') as csvfile:
+        spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+    
+        # 點位名稱,,高度,種類,等,編號,材質,TWD97緯度,TWD97經度,TW67橫座標,TW67縱座標,所在地,狀況,備註,
+        for row in spamreader:
+            # ignore data without lat, lon
+            if(len(row[7]) == 0 or len(row[8]) == 0):
+                continue
+            # ignore if the stone is missing.
+            if(len(row[12]) > 0):
+                continue
+            # refine the format
+     
+            row[5] = row[5].replace("◎本點","")
+            row[5] = row[5].replace("●","")
+            lat = row[7] = float(row[7]) # lat
+            lon = row[8] = float(row[8]) # lon
+            ele = row[2] = float(row[2].replace(",",""))
+    
+            if(row[3] in stones):
+                pprint(row)
+                data = searchosm(osm, lon, lat, 0.002)
+    
+                match = list(matchnodes(data, "natural", "peak"))
 
-osm = OsmApi.OsmApi(passwordfile="passwd", appid = 'RexBot', debug=debug, changesetauto=False)
-
-if (readonly is not True):
-    print ("changeset id %d" % (osm.ChangesetCreate({u"comment": u"基石資料"})), file=sys.stderr)
-
-with open('stone.csv') as csvfile:
-    spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
-
-    # 點位名稱,,高度,種類,等,編號,材質,TWD97緯度,TWD97經度,TW67橫座標,TW67縱座標,所在地,狀況,備註,
-    for row in spamreader:
-        # ignore data without lat, lon
-        if(len(row[7]) == 0 or len(row[8]) == 0):
-            continue
-        # ignore if the stone is missing.
-        if(len(row[12]) > 0):
-            continue
-        # refine the format
- 
-        row[5] = row[5].replace("◎本點","")
-        row[5] = row[5].replace("●","")
-        lat = row[7] = float(row[7]) # lat
-        lon = row[8] = float(row[8]) # lon
-        ele = row[2] = float(row[2].replace(",",""))
-
-        if(row[3] in stones):
-            pprint(row)
-            data = searchosm(osm, lon, lat, 0.002)
-
-            match = list(matchnodes(data, "natural", "peak"))
-            if(len(match) > 1):
-                for node in (match):
-                    pprint(node)
-                    print(osmlink(node))
-
-            if(len(match) == 0 and (ispeak(row[0]) or ispeak(row[1]))):
-                node = { 
-                        'lat': lat,
-                        'lon': lon,
-                        'tag': {
-                            'name': row[0],
-                            'name:zh': row[0],
-                            'natural': 'peak',
-                            'ele': ele,
+                # found more then one peaks near by. ignore it for now.
+                if(len(match) > 1):
+                    for node in (match):
+                        pprint(node)
+                        print(osmlink(node))
+    
+                # node not exist.
+                if(len(match) == 0 and (ispeak(row[0]) or ispeak(row[1]))):
+                    node = { 
+                            'lat': lat,
+                            'lon': lon,
+                            'tag': {
+                                'name': row[0],
+                                'name:zh': row[0],
+                                'natural': 'peak',
+                                'ele': ele,
+                                }
                             }
-                        }
-                if(len(row[1])>0):
-                    node['tag']['alt_name'] = row[1]
-                pprint(node)
-                print(osmlink(node))
-                if (not readonly):
-                    osm.NodeCreate(node)
-
-            if(len(match) == 1):
-                node = match[0]
-                pprint(node)
-                if(row[0] in node['tag']['name'] or row[1] in node['tag']['name']):
-                    node['tag']['name'] = row[0]
-                    node['tag']['name:zh'] = row[0]
                     if(len(row[1])>0):
                         node['tag']['alt_name'] = row[1]
-                    if('ele' not in node['tag']):
-                        node['tag']['ele'] = row[2]
                     pprint(node)
                     print(osmlink(node))
                     if (not readonly):
-                        osm.NodeUpdate(node)
+                        osm.NodeCreate(node)
+    
+                # node exist, only update names.
+                if(len(match) == 1):
+                    node = match[0]
+                    pprint(node)
+                    if(row[0] in node['tag']['name'] or row[1] in node['tag']['name']):
+                        node['tag']['name'] = row[0]
+                        node['tag']['name:zh'] = row[0]
+                        if(len(row[1])>0):
+                            node['tag']['alt_name'] = row[1]
+                        # update ele, only when not set.
+                        if('ele' not in node['tag']):
+                            node['tag']['ele'] = row[2]
+                        pprint(node)
+                        print(osmlink(node))
+                        if (not readonly):
+                            osm.NodeUpdate(node)
+    if (not readonly):
+        osm.ChangesetClose()
 
-"""
-#            match = matchnodes(data, "man_made", "survey_point"))
-                node['tag']['man_made'] = 'survey_point'
-                node['tag']['checkpoint'] = 'hiking'
-                node['lat'] = lat
-                node['lon'] = lon
-                node['tag']['name'] = row[0]
-                node['tag']['name:zh'] = row[0]
-                if(len(row[1])>0):
-                    node['tag']['alt_name'] = row[1]
-                # node['tag']['ref'] = "%s"
-                node['tag']['ref:survey_point'] = "%s%s" % (row[3], row[5])
-                node['tag']['ele'] = row[2]
-                # node['tag']['description'] = 
-                pprint(node)
-"""
-
-if (not readonly):
-    osm.ChangesetClose()
+if __name__ == '__main__':
+    main()
