@@ -10,19 +10,21 @@ from subprocess import call
 
 def main():
     
-    stones = []
+    stones = {}
     with open('stone.csv') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
         for row in spamreader:
-            stones.append(row[0])
+            stones[row[0]] = row[3]
             if(len(row[1])>0):
-                stones.append(row[1])
+                stones[row[0]] = row[3]
 
     with open('100mountain.csv') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
         for row in spamreader:
-            if(row[2] not in stones):
-                print ("%s" % (row[2]))
+            if(row[2] in stones):
+                print ("%s %s" % (row[2], stones[row[2]]))
+            else:
+                print ("%s missing" % (row[2]))
 
 if __name__ == '__main__':
     main()
