@@ -16,7 +16,7 @@ def main():
         for row in spamreader:
             stones[row[0]] = row[3]
             if(len(row[1])>0):
-                stones[row[0]] = row[3]
+                stones[row[1]] = row[3]
 
     with open('100mountain.csv') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
