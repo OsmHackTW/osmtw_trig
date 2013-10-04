@@ -7,6 +7,14 @@ import sys
 from pprint import pprint
 from subprocess import call
 
+
+def ispeak(name):
+    peaklist = ["山", "岳", "尖", "峰", "嶺"]
+    for i in peaklist:
+        if(name.endswith(i)):
+            return True
+    return False
+
 def main(argv=sys.argv):
     if(not argv[1:]):
         print ("%s: pointtype." % argv[0])
@@ -18,7 +26,7 @@ def main(argv=sys.argv):
         # 點位名稱,,高度,種類,等,編號,材質,TWD97緯度,TWD97經度,TW67橫座標,TW67縱座標,所在地,狀況,備註,
         for row in spamreader:
             if(row[3] == argv[1]):
-                if(len(row[12]) > 0 and row[12] != "找不到"):
+                if(len(row[12]) > 0 and row[12] != "找不到" and (ispeak(row[0]) or ispeak(row[1]))):
                     pprint(row)
 
 if __name__ == '__main__':
