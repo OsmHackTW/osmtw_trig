@@ -68,7 +68,7 @@ def main():
             lon = row[8] = float(row[8]) # lon
             ele = row[2] = row[2].replace(",","")
     
-            if(len(stones) == 0 or row[3] in stones):
+            if(len(stones) == 0 or row[0] in stones):
                 data = searchosm(osm, lon, lat, 0.002)
     
                 match = list(matchnodes(data, "natural", "peak"))
@@ -120,4 +120,7 @@ def main():
 
 if __name__ == '__main__':
     stones = sys.argv[1:]
+    if(len(stones) == 0):
+        print ("Usage: %s stonename")
+        exit()
     main()
